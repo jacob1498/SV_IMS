@@ -42,6 +42,7 @@ function unlockScreen() {
     if (code === LOCK_CODE) {
         document.getElementById('lockScreenModal').style.display = 'none';
         showToast("System unlocked", "success");
+        sessionStorage.setItem('authenticated', 'true');
         localStorage.removeItem('isLocked');
         resetIdleTimer();
     } else {
@@ -68,7 +69,8 @@ window.onload = () => {
     resetIdleTimer();
     showTableSkeletons('attendanceBody', 5, 13);
 };
-if (localStorage.getItem('isLocked') === 'true') {
+
+if (sessionStorage.getItem('authenticated') !== 'true' || localStorage.getItem('isLocked') === 'true') {
     lockScreen();
 }
 window.onmousemove = resetIdleTimer;

@@ -27,16 +27,19 @@ function unlockScreen() {
     const code = document.getElementById('lockCodeInput').value;
     if (code === LOCK_CODE) {
         document.getElementById('lockScreenModal').style.display = 'none';
+        sessionStorage.setItem('authenticated', 'true');
         localStorage.removeItem('isLocked');
     } else {
         const lockContent = document.querySelector('.lock-content');
-        lockContent.classList.add('shake');
-        setTimeout(() => lockContent.classList.remove('shake'), 400);
+        if (lockContent) {
+            lockContent.classList.add('shake');
+            setTimeout(() => lockContent.classList.remove('shake'), 400);
+        }
         document.getElementById('lockCodeInput').value = '';
     }
 }
 
-if (localStorage.getItem('isLocked') === 'true') lockScreen();
+if (sessionStorage.getItem('authenticated') !== 'true' || localStorage.getItem('isLocked') === 'true') lockScreen();
 
 // Data Loading
 const dbRequest = indexedDB.open("SunnyvilleTrackerDB", 3);
