@@ -67,7 +67,7 @@ setInterval(() => {
 // Global events to track activity for auto-lock
 window.onload = () => {
     resetIdleTimer();
-    showTableSkeletons('countBody', 5, 9);
+    showTableSkeletons('countBody', 5, 10);
 };
 
 if (sessionStorage.getItem('authenticated') !== 'true' || localStorage.getItem('isLocked') === 'true') {
@@ -179,7 +179,7 @@ function confirmStartCycleCount(zone) {
     const store = tx.objectStore("cycleCountLogs");
     tempStartData.ids.forEach(id => {
         const user = userMasterData.find(u => u.id === id);
-        const newLog = { userId: id, name: user.name, countRefId: tempStartData.countRefId, date: tempStartData.date, startTime: tempStartData.startTime, endTime: tempStartData.endTime, duration: tempStartData.duration, zone };
+        const newLog = { userId: id, name: user.name, company: user.company || '-', countRefId: tempStartData.countRefId, date: tempStartData.date, startTime: tempStartData.startTime, endTime: tempStartData.endTime, duration: tempStartData.duration, zone };
         store.add(newLog).onsuccess = (e) => {
             newLog.id = e.target.result;
             cycleCountLogs.push(newLog);
@@ -274,7 +274,7 @@ function renderCycleCountTable() {
     paginatedData.forEach(log => {
         let displayDuration = log.duration;
         if (log.endTime === '-') displayDuration = `<span style="color: var(--accent); font-weight: bold;"><i class="fas fa-sync fa-spin"></i> ${calculateDuration(log.startTime, nowTime)}</span>`;
-        html += `<tr><td><strong>${log.userId}</strong></td><td>${log.name || 'Unknown'}</td><td>${log.countRefId}</td><td>${log.zone || '-'}</td><td>${log.date}</td><td>${log.startTime}</td><td>${log.endTime}</td><td>${displayDuration}</td><td>${log.endTime === '-' ? `<button class="edit-btn" onclick="quickEndCount(${log.id})"><i class="fas fa-stop"></i></button>` : ''}<button class="delete-btn" onclick="deleteCount(${log.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+        html += `<tr><td><strong>${log.userId}</strong></td><td>${log.name || 'Unknown'}</td><td>${log.company || '-'}</td><td>${log.countRefId}</td><td>${log.zone || '-'}</td><td>${log.date}</td><td>${log.startTime}</td><td>${log.endTime}</td><td>${displayDuration}</td><td>${log.endTime === '-' ? `<button class="edit-btn" onclick="quickEndCount(${log.id})"><i class="fas fa-stop"></i></button>` : ''}<button class="delete-btn" onclick="deleteCount(${log.id})"><i class="fas fa-trash"></i></button></td></tr>`;
     });
     tbody.innerHTML = html;
     renderCountPagination(filtered.length);
@@ -436,8 +436,8 @@ function exportCycleCount() {
     const zoneSearch = document.getElementById('zoneSearch').value;
     const data = cycleCountLogs.filter(l => (l.userId.toLowerCase().includes(search) || l.countRefId.toLowerCase().includes(search) || (l.name && l.name.toLowerCase().includes(search))) && (zoneSearch === "" || l.zone === zoneSearch) && (currentCountTab === 'Counting' ? l.endTime === '-' : l.endTime !== '-'));
     if (data.length === 0) return showToast("No logs to export", "warning");
-    let csv = "data:text/csv;charset=utf-8,User ID,Name,Count ID,Zone,Date,Start Time,End Time,Duration\n";
-    data.forEach(l => csv += `${l.userId},${l.name},${l.countRefId},${l.zone || '-'},${l.date},${l.startTime},${l.endTime},${l.duration}\n`);
+    let csv = "data:text/csv;charset=utf-8,User ID,Name,Company,Count ID,Zone,Date,Start Time,End Time,Duration\n";
+    data.forEach(l => csv += `${l.userId},${l.name},${l.company || '-'},${l.countRefId},${l.zone || '-'},${l.date},${l.startTime},${l.endTime},${l.duration}\n`);
     const link = document.createElement("a");
     link.setAttribute("href", encodeURI(csv));
     link.setAttribute("download", `sunnyville_cyclecount_export_${new Date().toISOString().split('T')[0]}.csv`);

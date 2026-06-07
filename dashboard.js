@@ -96,7 +96,7 @@ function refreshDashboard() {
         const idleBody = document.getElementById('dash-idleBody');
         if (idleBody) {
             idleBody.innerHTML = idle.length > 0
-                ? idle.map(u => `<tr><td><strong>${u.userId}</strong></td><td>${u.name}</td></tr>`).join('')
+                ? idle.map(u => `<tr><td><strong>${u.userId}</strong></td><td>${u.name}<br><small>${u.company || '-'}</small></td></tr>`).join('')
                 : '<tr><td colspan="2" style="text-align:center; padding: 10px; opacity: 0.5;">No idle personnel</td></tr>';
         }
     };

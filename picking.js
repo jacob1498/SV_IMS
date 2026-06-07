@@ -67,7 +67,7 @@ setInterval(() => {
 // Global events to track activity for auto-lock
 window.onload = () => {
     resetIdleTimer();
-    showTableSkeletons('pickingBody', 5, 8);
+    showTableSkeletons('pickingBody', 5, 9);
 };
 
 if (sessionStorage.getItem('authenticated') !== 'true' || localStorage.getItem('isLocked') === 'true') {
@@ -202,6 +202,7 @@ function confirmStartPicking(zone) {
         const newLog = {
             userId: id,
             name: user.name,
+            company: user.company || '-',
             batchId: tempStartData.batchId,
             date: tempStartData.date,
             startTime: tempStartData.startTime,
@@ -319,6 +320,7 @@ function renderPickingTable() {
         tableHtml += `
             <tr>
                 <td><strong>${log.userId}</strong><br><small>${log.name || 'Unknown'}</small></td>
+                <td>${log.company || '-'}</td>
                 <td>${log.batchId}</td>
                 <td>${log.zone || '-'}</td>
                 <td>${log.date}</td>

@@ -108,6 +108,7 @@
                         <tr>
                             <th onclick="sortData('userId')">User ID <i class="fas fa-sort"></i></th>
                             <th onclick="sortData('name')">Name <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('company')">Company <i class="fas fa-sort"></i></th>
                             <th onclick="sortData('date')">Date <i class="fas fa-sort"></i></th>
                             <th onclick="sortData('timeIn')">Time In <i class="fas fa-sort"></i></th>
                             <th onclick="sortData('breakOut')">Break Out <i class="fas fa-sort"></i></th>
@@ -150,6 +151,7 @@
                     <div class="user-form">
                         <input type="text" id="newUserId" placeholder="User ID (e.g., SV-001)">
                         <input type="text" id="newUserName" placeholder="Full Name">
+                        <input type="text" id="newCompany" placeholder="Company Name">
                         <select id="newUserStatus">
                             <option value="Active">Active</option>
                             <option value="Inactive">Inactive</option>
@@ -173,6 +175,7 @@
                             <tr>
                                 <th>User ID</th>
                                 <th>Name</th>
+                                <th>Company</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -257,6 +260,10 @@
                     <div class="form-group">
                         <label>Full Name</label>
                         <input type="text" id="editUserName">
+                    </div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" id="editCompany">
                     </div>
                     <div class="form-group">
                         <label>Status</label>

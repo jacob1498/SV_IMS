@@ -67,7 +67,7 @@ setInterval(() => {
 // Global events to track activity for auto-lock
 window.onload = () => {
     resetIdleTimer();
-    showTableSkeletons('attendanceBody', 5, 13);
+    showTableSkeletons('attendanceBody', 5, 14);
 };
 
 if (sessionStorage.getItem('authenticated') !== 'true' || localStorage.getItem('isLocked') === 'true') {
@@ -159,10 +159,12 @@ function loadDataFromDB() {
 function addUser() {
     const idInput = document.getElementById('newUserId');
     const nameInput = document.getElementById('newUserName');
+    const companyInput = document.getElementById('newCompany');
     const statusInput = document.getElementById('newUserStatus');
 
     const id = idInput.value.trim();
     const name = nameInput.value.trim();
+    const company = companyInput.value.trim();
     const status = statusInput.value;
 
     if (!id || !name) {
@@ -175,11 +177,12 @@ function addUser() {
         return;
     }
 
-    const newUser = { id, name, status };
+    const newUser = { id, name, company, status };
     userMasterData.push(newUser);
     db.transaction("userMasterData", "readwrite").objectStore("userMasterData").put(newUser);
     idInput.value = '';
     nameInput.value = '';
+    companyInput.value = '';
     renderUserMaster();
     showToast("User added successfully", "success");
 }
@@ -199,6 +202,7 @@ function editUser(id) {
     
     document.getElementById('editUserId').value = user.id;
     document.getElementById('editUserName').value = user.name;
+    document.getElementById('editCompany').value = user.company || '';
     document.getElementById('editUserStatus').value = user.status;
     toggleModal('editUserModal', true);
 }
@@ -206,16 +210,20 @@ function editUser(id) {
 function saveEditUser() {
     const id = document.getElementById('editUserId').value;
     const name = document.getElementById('editUserName').value;
+    const company = document.getElementById('editCompany').value;
     const status = document.getElementById('editUserStatus').value;
 
     const userIndex = userMasterData.findIndex(u => u.id === id);
     if (userIndex > -1) {
-        userMasterData[userIndex] = { id, name, status };
+        userMasterData[userIndex] = { id, name, company, status };
         db.transaction("userMasterData", "readwrite").objectStore("userMasterData").put(userMasterData[userIndex]);
         
-        // Update attendance logs if name changed
+        // Update attendance logs if name or company changed
         attendanceLogs.forEach(log => {
-            if (log.userId === id) log.name = name;
+            if (log.userId === id) {
+                log.name = name;
+                log.company = company;
+            }
         });
         
         renderUserMaster();
@@ -283,6 +291,7 @@ function logAttendance() {
         return;
     }
     const userName = user.name;
+    const userCompany = user.company || '-';
 
     nameDisplay.value = userName;
 
@@ -314,6 +323,7 @@ function logAttendance() {
         entry = {
             userId: userId,
             name: userName,
+            company: userCompany,
             date: dateStr,
             timeIn: '-',
             snackOut: '-',
@@ -625,6 +635,7 @@ function renderTable(data) {
         const row = `<tr>
             <td>${log.userId}</td>
             <td>${log.name}</td>
+            <td>${log.company || '-'}</td>
             <td>${log.date}</td>
             <td>${log.timeIn}</td>
             <td>${log.snackOut}</td>
@@ -746,6 +757,7 @@ function renderUserMaster() {
         const row = `<tr>
             <td>${user.id}</td>
             <td>${user.name}</td>
+            <td>${user.company || '-'}</td>
             <td>${user.status}</td>
             <td>
                 <button class="edit-btn" onclick="editUser('${user.id}')"><i class="fas fa-edit"></i> Edit</button>
@@ -896,11 +908,11 @@ function exportAttendance() {
         return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,User ID,Name,Date,Time In,Break Out,Break In,Snack Out,Snack In,Time Out,Break Duration,Snack Duration,Shift\n";
+    let csvContent = "data:text/csv;charset=utf-8,User ID,Name,Company,Date,Time In,Break Out,Break In,Snack Out,Snack In,Time Out,Break Duration,Snack Duration,Shift\n";
     dataToExport.forEach(log => {
         const snackDuration = calculateBreakDuration(log.snackOut, log.snackIn);
         const breakDuration = calculateBreakDuration(log.breakOut, log.breakIn);
-        csvContent += `${log.userId},${log.name},${log.date},${log.timeIn},${log.breakOut},${log.breakIn},${log.snackOut},${log.snackIn},${log.timeOut},${breakDuration},${snackDuration},${log.shift}\n`;
+        csvContent += `${log.userId},${log.name},${log.company || '-'},${log.date},${log.timeIn},${log.breakOut},${log.breakIn},${log.snackOut},${log.snackIn},${log.timeOut},${breakDuration},${snackDuration},${log.shift}\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
