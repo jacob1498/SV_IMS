@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Sunnyville Attendance & Activity Tracker</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="logo"><i class="fas fa-sun"></i> Sunnyville Tracker</div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="#" class="nav-item active"><i class="fas fa-clipboard-user"></i> Attendance</a></li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropbtn"><i class="fas fa-tasks"></i> Activity</a>
+                <div class="dropdown-content">
+                    <a href="picking.html"><i class="fas fa-box-open"></i> Picking</a>
+                    <a href="cycle-count.html"><i class="fas fa-calculator"></i> Cycle Count</a>
+                </div>
+            </li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropbtn"><i class="fas fa-cog"></i> System</a>
+                <div class="dropdown-content">
+                    <a href="javascript:void(0)" onclick="document.getElementById('clearDataModal').style.display='block'"><i class="fas fa-eraser"></i> Clear Data</a>
+                </div>
+            </li>
+            <li><button class="nav-btn" onclick="lockScreen()"><i class="fas fa-lock"></i> Lock Screen</button></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <!-- Attendance Input Section -->
+        <section class="card recording-card">
+            <div class="recording-header">
+                <h2><i class="fas fa-barcode"></i> Attendance Recording</h2>
+                <span class="status-badge" id="scanStatus">READY TO SCAN</span>
+            </div>
+            <div class="recording-body">
+                <div class="scan-container">
+                    <i class="fas fa-id-card scan-icon"></i>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="userIdInput" placeholder="Scan User ID..." autofocus style="flex: 1;">
+                        <input type="text" id="userNameDisplay" placeholder="User Name" readonly style="flex: 1;">
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button id="btn-TimeIn" class="act-btn btn-in active" onclick="selectAction('Time In')"><i class="fas fa-sign-in-alt"></i> Time In</button>
+                    <button id="btn-BreakOut" class="act-btn btn-bout" onclick="selectAction('Break Out')"><i class="fas fa-coffee"></i> Break Out</button>
+                    <button id="btn-BreakIn" class="act-btn btn-bin" onclick="selectAction('Break In')"><i class="fas fa-undo"></i> Break In</button>
+                    <button id="btn-SnackOut" class="act-btn btn-sout" onclick="selectAction('Snack Out')"><i class="fas fa-cookie"></i> Snack Out</button>
+                    <button id="btn-SnackIn" class="act-btn btn-sin" onclick="selectAction('Snack In')"><i class="fas fa-cookie-bite"></i> Snack In</button>
+                    <button id="btn-TimeOut" class="act-btn btn-out" onclick="selectAction('Time Out')"><i class="fas fa-sign-out-alt"></i> Time Out</button>
+                </div>
+                <div class="summary-cards">
+                    <div class="summary-card" onclick="openSummaryModal('active')">
+                        <h4><i class="fas fa-users"></i> Total Time In</h4>
+                        <span id="stat-totalIn" class="count">0</span>
+                    </div>
+                    <div class="summary-card" style="border-left-color: var(--warning);" onclick="openSummaryModal('onBreak')">
+                        <h4><i class="fas fa-mug-hot"></i> Break Out</h4>
+                        <span id="stat-breakOut" class="count">0</span>
+                    </div>
+                    <div class="summary-card" style="border-left-color: var(--danger);" onclick="openSummaryModal('longBreak')">
+                        <h4><i class="fas fa-hourglass-half"></i> >40 Mins Break</h4>
+                        <span id="stat-longBreak" class="count">0</span>
+                    </div>
+                    <div class="summary-card" style="border-left-color: var(--success);" onclick="openSummaryModal('finished')">
+                        <h4><i class="fas fa-check-circle"></i> Time Out</h4>
+                        <span id="stat-timeOut" class="count">0</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tabbed Attendance Log -->
+        <section class="card">
+            <div class="table-header">
+                <h3>Attendance Log</h3>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="logSearch" placeholder="Search ID or Name..." oninput="handleSearch()">
+                    </div>
+                    <div class="date-filters">
+                        <input type="date" id="dateFrom" onchange="updateView()">
+                        <i class="fas fa-arrow-right"></i>
+                        <input type="date" id="dateTo" onchange="updateView()">
+                    </div>
+                    <button class="nav-btn" onclick="toggleModal('userModal', true)"><i class="fas fa-users-gear"></i> User ID Master</button>
+                    <button class="secondary-btn" onclick="clearFilters()" title="Clear all filters"><i class="fas fa-filter-circle-xmark"></i> Clear</button>
+                    <button class="export-btn" onclick="exportAttendance()"><i class="fas fa-file-export"></i> Export Log</button>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab-link active" onclick="filterTable('All')">All Shift</button>
+                <button class="tab-link" onclick="filterTable('1st Shift')">1st Shift</button>
+                <button class="tab-link" onclick="filterTable('2nd Shift')">2nd Shift</button>
+                <button class="tab-link" onclick="filterTable('3rd Shift')">3rd Shift</button>
+            </div>
+
+            <div class="table-container">
+                <table id="attendanceTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortData('userId')">User ID <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('name')">Name <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('date')">Date <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('timeIn')">Time In <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('breakOut')">Break Out <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('breakIn')">Break In <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('snackOut')">Snack Out <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('snackIn')">Snack In <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('timeOut')">Time Out <i class="fas fa-sort"></i></th>
+                            <th>Break Duration</th>
+                            <th>Snack Duration</th>
+                            <th onclick="sortData('shift')">Shift <i class="fas fa-sort"></i></th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceBody">
+                        <!-- Entries will appear here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="log-controls">
+                <div class="pagination-controls" id="paginationWrapper">
+                    <button class="page-btn" onclick="changePage(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <div id="paginationNumbers" class="pagination-numbers"></div>
+                    <button class="page-btn" onclick="changePage(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- User ID Master Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>User ID Master</h2>
+                <span class="close" onclick="toggleModal('userModal', false)">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="add-user-section">
+                    <h3><i class="fas fa-user-plus"></i> Add New User</h3>
+                    <div class="user-form">
+                        <input type="text" id="newUserId" placeholder="User ID (e.g., SV-001)">
+                        <input type="text" id="newUserName" placeholder="Full Name">
+                        <select id="newUserStatus">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                        <button class="nav-btn" onclick="addUser()"><i class="fas fa-plus"></i> Add User</button>
+                    </div>
+                </div>
+                <hr>
+                <div class="modal-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="userSearch" placeholder="Search ID or Name..." oninput="handleUserSearch()">
+                    </div>
+                    <button class="secondary-btn" onclick="clearUserFilters()" title="Clear search"><i class="fas fa-filter-circle-xmark"></i> Clear</button>
+                    <button class="secondary-btn" onclick="alert('Import function triggered')"><i class="fas fa-file-import"></i> Import CSV</button>
+                    <button class="secondary-btn" onclick="alert('Export function triggered')"><i class="fas fa-file-export"></i> Export CSV</button>
+                </div>
+                <div class="table-container">
+                    <table id="userMasterTable">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userMasterBody">
+                            <!-- User data will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="log-controls">
+                    <div class="pagination-controls">
+                        <button class="page-btn" onclick="changeUserPage(-1)"><i class="fas fa-chevron-left"></i></button>
+                        <div id="userPaginationNumbers" class="pagination-numbers"></div>
+                        <button class="page-btn" onclick="changeUserPage(1)"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Detail Modal -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="summaryModalTitle">Personnel Details</h2>
+                <span class="close" onclick="toggleModal('summaryModal', false)">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="table-container quick-action-list">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Last Action</th>
+                                <th>Quick Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryModalBody"></tbody>
+                    </table>
+                </div>
+                <div class="log-controls">
+                    <div class="pagination-controls">
+                        <button class="page-btn" onclick="changeSummaryPage(-1)"><i class="fas fa-chevron-left"></i></button>
+                        <div id="summaryPaginationNumbers" class="pagination-numbers"></div>
+                        <button class="page-btn" onclick="changeSummaryPage(1)"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Action Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm Action</h2>
+                <span class="close" onclick="toggleModal('confirmModal', false)">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage" style="margin-bottom: 20px;"></p>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="secondary-btn" onclick="toggleModal('confirmModal', false)">Cancel</button>
+                    <button id="confirmBtn" class="nav-btn" style="background: var(--danger);">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="modal">
+        <div class="modal-content" style="width: 450px;">
+            <div class="modal-header">
+                <h2>Edit User Details</h2>
+                <span class="close" onclick="toggleModal('editUserModal', false)">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="user-form" style="flex-direction: column;">
+                    <div class="form-group">
+                        <label>User ID</label>
+                        <input type="text" id="editUserId" readonly style="background:#f1f1f1">
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="editUserName">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="editUserStatus">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <button class="nav-btn" onclick="saveEditUser()" style="width: 100%; margin-top: 10px;">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Attendance Modal -->
+    <div id="editLogModal" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <div class="modal-header">
+                <h2>Edit Attendance Times</h2>
+                <span class="close" onclick="toggleModal('editLogModal', false)">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="user-form" style="flex-direction: column;">
+                    <input type="hidden" id="editLogUserId">
+                    <input type="hidden" id="editLogDate">
+                    <div class="form-group">
+                        <label>Time In</label>
+                        <input type="time" id="editTimeIn">
+                    </div>
+                    <div class="form-group">
+                        <label>Break Out</label>
+                        <input type="time" id="editBreakOut">
+                    </div>
+                    <div class="form-group">
+                        <label>Break In</label>
+                        <input type="time" id="editBreakIn">
+                    </div>
+                    <div class="form-group">
+                        <label>Snack Out</label>
+                        <input type="time" id="editSnackOut">
+                    </div>
+                    <div class="form-group">
+                        <label>Snack In</label>
+                        <input type="time" id="editSnackIn">
+                    </div>
+                    <div class="form-group">
+                        <label>Time Out</label>
+                        <input type="time" id="editTimeOut">
+                    </div>
+                    <button class="nav-btn" onclick="saveEditLog()" style="width: 100%; margin-top: 10px;">Update Log</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear Data Modal -->
+    <div id="clearDataModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2>Clear System Data</h2>
+                <span class="close" onclick="document.getElementById('clearDataModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>From Date</label>
+                    <input type="date" id="clearFrom" style="width: 100%;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>To Date</label>
+                    <input type="date" id="clearTo" style="width: 100%;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                    <button class="nav-btn" style="background: var(--warning); color: var(--text);" onclick="clearDataByPeriod()"><i class="fas fa-filter"></i> Clear Selected Range</button>
+                    <button class="nav-btn" style="background: var(--danger);" onclick="clearAllData()"><i class="fas fa-trash-alt"></i> Clear All Data (Reset)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lock Screen Modal -->
+    <div id="lockScreenModal" class="modal lock-screen">
+        <div class="lock-content">
+            <h2><i class="fas fa-user-shield" style="font-size: 2.5rem; color: var(--accent);"></i> Security Lock</h2>
+            <input type="password" id="lockCodeInput" placeholder="••••" 
+                   onkeypress="if(event.key==='Enter') unlockScreen()" autofocus>
+            <div class="lock-footer">ENTER SECURITY CODE TO RESUME</div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <footer class="footer">
+        <p>&copy; 2026 Sunnyville Warehouse Management System. All rights reserved.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

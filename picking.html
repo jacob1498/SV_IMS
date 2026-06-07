@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Picking Tracker - Sunnyville</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fas fa-sun"></i> Sunnyville Tracker
+            <button class="clear-data-btn" onclick="clearAllData()">Clear All Data</button>
+        </div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="index.html" class="nav-item"><i class="fas fa-clipboard-user"></i> Attendance</a></li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropbtn active"><i class="fas fa-tasks"></i> Activity</a>
+                <div class="dropdown-content">
+                    <a href="picking.html"><i class="fas fa-box-open"></i> Picking</a>
+                    <a href="cycle-count.html"><i class="fas fa-calculator"></i> Cycle Count</a>
+                </div>
+            </li>
+            <li><button class="nav-btn" onclick="lockScreen()"><i class="fas fa-lock"></i> Lock Screen</button></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <section class="card recording-card">
+            <div class="recording-header">
+                <h2><i class="fas fa-box-open"></i> Picking Activity</h2>
+                <span class="status-badge" id="scanStatus">READY TO SCAN</span>
+            </div>
+            <div class="recording-body">
+                <div class="scan-container" style="max-width: 800px;">
+                    <div class="scan-grid">
+                        <div class="form-group">
+                            <label>User ID</label>
+                            <input type="text" id="pickingUserId" placeholder="Scan ID..." autofocus>
+                        </div>
+                        <div class="form-group">
+                            <label>Batch / Order ID</label>
+                            <input type="text" id="batchId" placeholder="Scan Batch...">
+                        </div>
+                        <div class="form-group">
+                            <label>User Names</label>
+                            <textarea id="pickingUserName" readonly placeholder="Name lookup..." style="resize: none;"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="act-btn btn-in" onclick="processPicking('START')"><i class="fas fa-play"></i> Start Picking</button>
+                    <button class="act-btn btn-out" onclick="processPicking('END')"><i class="fas fa-stop"></i> End Picking</button>
+                </div>
+                <div class="summary-cards">
+                    <div class="summary-card" onclick="openSummaryModal('active')">
+                        <h4><i class="fas fa-user-tag"></i> Unique Pickers</h4>
+                        <span id="stat-uniquePickers" class="count">0</span>
+                    </div>
+                    <div class="summary-card" id="longPickCard" onclick="openSummaryModal('longPick')">
+                        <h4><i class="fas fa-hourglass-end"></i> > 1hr Picking</h4>
+                        <span id="stat-longPicks" class="count">0</span>
+                    </div>
+                    <div class="summary-card" style="border-left-color: var(--info);" onclick="openSummaryModal('batchesPicking')">
+                        <h4><i class="fas fa-boxes"></i> Batches Picking</h4>
+                        <span id="stat-uniqueBatchesPicking" class="count">0</span>
+                    </div>
+                    <div class="summary-card" style="border-left-color: var(--success);" onclick="openSummaryModal('batchesPicked')">
+                        <h4><i class="fas fa-clipboard-check"></i> Batches Picked</h4>
+                        <span id="stat-uniqueBatchesPicked" class="count">0</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="table-header">
+                <h3>Picking Log</h3>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="pickSearch" placeholder="Search ID or Batch..." oninput="renderPickingTable()">
+                    </div>
+                    <div class="date-filters">
+                        <input type="date" id="dateFrom" onchange="renderPickingTable()">
+                        <i class="fas fa-arrow-right"></i>
+                        <input type="date" id="dateTo" onchange="renderPickingTable()">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <select id="zoneSearch" onchange="renderPickingTable()" style="padding: 10px;">
+                            <option value="">All Zones</option>
+                            <option value="A">Zone A</option>
+                            <option value="B">Zone B</option>
+                            <option value="C">Zone C</option>
+                            <option value="D">Zone D</option>
+                        </select>
+                    </div>
+                    <button class="export-btn" onclick="exportPicking()"><i class="fas fa-file-export"></i> Export</button>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-link active" onclick="filterPickTab('Picking')">Picking</button>
+                <button class="tab-link" onclick="filterPickTab('Picked')">Picked</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortData('userId')">User <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('batchId')">Batch ID <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('zone')">Zone <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('date')">Date <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('startTime')">Start Time <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('endTime')">End Time <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('duration')">Duration <i class="fas fa-sort"></i></th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pickingBody"></tbody>
+                </table>
+            </div>
+            
+            <div class="log-controls">
+                <div class="pagination-controls" id="pickPaginationWrapper">
+                    <button class="page-btn" onclick="changePickPage(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <div id="pickPaginationNumbers" class="pagination-numbers"></div>
+                    <button class="page-btn" onclick="changePickPage(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Zone Selection Modal -->
+    <div id="zoneModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2>Select Picking Zone</h2>
+                <span class="close" onclick="document.getElementById('zoneModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="text-align: center; color: var(--secondary);">Where are you picking from?</p>
+                <div class="zone-grid">
+                    <div class="zone-card" onclick="confirmStartPicking('A')">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Zone A</span>
+                    </div>
+                    <div class="zone-card" onclick="confirmStartPicking('B')">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Zone B</span>
+                    </div>
+                    <div class="zone-card" onclick="confirmStartPicking('C')">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Zone C</span>
+                    </div>
+                    <div class="zone-card" onclick="confirmStartPicking('D')">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Zone D</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Detail Modal -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="summaryModalTitle">Picking Details</h2>
+                <span class="close" onclick="document.getElementById('summaryModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="table-container quick-action-list">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Batch ID</th>
+                                <th>Quick Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryModalBody"></tbody>
+                    </table>
+                </div>
+                <div class="log-controls">
+                    <div class="pagination-controls">
+                        <button class="page-btn" onclick="changeSummaryPage(-1)"><i class="fas fa-chevron-left"></i></button>
+                        <div id="summaryPaginationNumbers" class="pagination-numbers"></div>
+                        <button class="page-btn" onclick="changeSummaryPage(1)"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lock Screen Modal -->
+    <div id="lockScreenModal" class="modal lock-screen">
+        <div class="lock-content">
+            <h2><i class="fas fa-user-shield" style="font-size: 2.5rem; color: var(--accent);"></i> Security Lock</h2>
+            <input type="password" id="lockCodeInput" placeholder="••••" 
+                   onkeypress="if(event.key==='Enter') unlockScreen()" autofocus>
+            <div class="lock-footer">ENTER SECURITY CODE TO RESUME</div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm Action</h2>
+                <span class="close" onclick="document.getElementById('confirmModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage" style="margin-bottom: 20px;"></p>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="secondary-btn" onclick="document.getElementById('confirmModal').style.display='none'">Cancel</button>
+                    <button id="confirmBtn" class="nav-btn" style="background: var(--danger);">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2026 Sunnyville Warehouse Management System. All rights reserved.</p>
+    </footer>
+
+    <script src="picking.js"></script>
+</body>
+</html>

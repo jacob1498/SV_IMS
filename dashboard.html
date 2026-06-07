@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Dashboard - Sunnyville WMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .welcome-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--primary);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        .clock-container { text-align: right; }
+        #realtime-clock { font-size: 2.5rem; font-weight: bold; display: block; }
+        #realtime-date { font-size: 1rem; opacity: 0.8; }
+        .stat-group { margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
+        .stat-value { font-weight: bold; color: var(--accent); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo"><i class="fas fa-sun"></i> Sunnyville Tracker</div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html" class="nav-item active"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="index.html" class="nav-item"><i class="fas fa-clipboard-user"></i> Attendance</a></li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropbtn"><i class="fas fa-tasks"></i> Activity</a>
+                <div class="dropdown-content">
+                    <a href="picking.html"><i class="fas fa-box-open"></i> Picking</a>
+                    <a href="cycle-count.html"><i class="fas fa-calculator"></i> Cycle Count</a>
+                </div>
+            </li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropbtn"><i class="fas fa-cog"></i> System</a>
+                <div class="dropdown-content">
+                    <a href="javascript:void(0)" onclick="document.getElementById('clearDataModal').style.display='block'"><i class="fas fa-eraser"></i> Clear Data</a>
+                </div>
+            </li>
+            <li><button class="nav-btn" onclick="lockScreen()"><i class="fas fa-lock"></i> Lock Screen</button></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <section class="welcome-section">
+            <div>
+                <h1>Welcome to Sunnyville WMS</h1>
+                <p>Warehouse Operations Overview</p>
+            </div>
+            <div class="clock-container">
+                <span id="realtime-clock">00:00:00</span>
+                <span id="realtime-date">Loading date...</span>
+            </div>
+        </section>
+
+        <div class="dashboard-grid">
+            <!-- Attendance Summary -->
+            <div class="card">
+                <h3><i class="fas fa-user-clock" style="color: var(--success);"></i> Attendance</h3>
+                <div class="stat-group">
+                    <div class="stat-row"><span>Currently Timed In</span> <span class="stat-value" id="dash-totalIn">0</span></div>
+                    <div class="stat-row"><span>Personnel on Break</span> <span class="stat-value" id="dash-onBreak">0</span></div>
+                    <div class="stat-row"><span>Finished Shifts</span> <span class="stat-value" id="dash-finishedAtt">0</span></div>
+                </div>
+            </div>
+
+            <!-- Picking Summary -->
+            <div class="card">
+                <h3><i class="fas fa-box-open" style="color: var(--accent);"></i> Picking Activity</h3>
+                <div class="stat-group">
+                    <div class="stat-row"><span>Active Pickers</span> <span class="stat-value" id="dash-activePicks">0</span></div>
+                    <div class="stat-row"><span>Batches Completed</span> <span class="stat-value" id="dash-doneBatches">0</span></div>
+                    <div class="stat-row"><span>Long Sessions (>1hr)</span> <span class="stat-value" id="dash-longPicks">0</span></div>
+                </div>
+            </div>
+
+            <!-- Cycle Count Summary -->
+            <div class="card">
+                <h3><i class="fas fa-calculator" style="color: var(--warning);"></i> Cycle Count</h3>
+                <div class="stat-group">
+                    <div class="stat-row"><span>Active Counters</span> <span class="stat-value" id="dash-activeCounts">0</span></div>
+                    <div class="stat-row"><span>Counts Completed</span> <span class="stat-value" id="dash-doneCounts">0</span></div>
+at                 <div class="stat-row"><span>Zones Covered Today</span> <span class="stat-value" id="dash-zones">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Idle Personnel -->
+        <div class="card">
+            <h3><i class="fas fa-user-clock" style="color: var(--secondary);"></i> Idle Personnel</h3>
+            <div class="stat-group">
+                <div class="table-container" style="max-height: 300px; border: none; margin-top: 10px;">
+                    <table style="width: 100%; font-size: 0.85rem;">
+                        <thead style="display: none;">
+                            <tr><th>ID</th><th>Name</th></tr>
+                        </thead>
+                        <tbody id="dash-idleBody">
+                            <tr><td colspan="2" style="text-align: center; opacity: 0.6; padding: 10px;">Loading idle list...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Clear Data Modal -->
+    <div id="clearDataModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2>Clear System Data</h2>
+                <span class="close" onclick="document.getElementById('clearDataModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>From Date</label>
+                    <input type="date" id="clearFrom" style="width: 100%;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>To Date</label>
+                    <input type="date" id="clearTo" style="width: 100%;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                    <button class="nav-btn" style="background: var(--warning); color: var(--text);" onclick="clearDataByPeriod()"><i class="fas fa-filter"></i> Clear Selected Range</button>
+                    <button class="nav-btn" style="background: var(--danger);" onclick="clearAllData()"><i class="fas fa-trash-alt"></i> Clear All Data (Reset)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lock Screen Modal (Standard across all pages) -->
+    <div id="lockScreenModal" class="modal lock-screen">
+        <div class="lock-content">
+            <h2><i class="fas fa-user-shield" style="font-size: 2.5rem; color: var(--accent);"></i> Security Lock</h2>
+            <input type="password" id="lockCodeInput" placeholder="••••" onkeypress="if(event.key==='Enter') unlockScreen()" autofocus>
+            <div class="lock-footer">ENTER SECURITY CODE TO RESUME</div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <footer class="footer">
+        <p>&copy; 2026 Sunnyville Warehouse Management System.</p>
+    </footer>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

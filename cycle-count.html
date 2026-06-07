@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Cycle Count Tracker - Sunnyville</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fas fa-sun"></i> Sunnyville Tracker
+            <button class="clear-data-btn" onclick="clearAllData()">Clear All Data</button>
+        </div>
+        <ul class="nav-links">
+            <li><a href="dashboard.html" class="nav-item"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="index.html" class="nav-item"><i class="fas fa-clipboard-user"></i> Attendance</a></li>
+            <li class="dropdown">
+                <a href="javascript:void(0)" class="dropbtn active"><i class="fas fa-tasks"></i> Activity</a>
+                <div class="dropdown-content">
+                    <a href="picking.html"><i class="fas fa-box-open"></i> Picking</a>
+                    <a href="cycle-count.html"><i class="fas fa-calculator"></i> Cycle Count</a>
+                </div>
+            </li>
+            <li><button class="nav-btn" onclick="lockScreen()"><i class="fas fa-lock"></i> Lock Screen</button></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <section class="card recording-card">
+            <div class="recording-header">
+                <h2><i class="fas fa-calculator"></i> Cycle Count Activity</h2>
+                <span class="status-badge" id="scanStatus">READY TO SCAN</span>
+            </div>
+            <div class="recording-body">
+                <div class="scan-container" style="max-width: 800px;">
+                    <div class="scan-grid">
+                        <div class="form-group">
+                            <label>User ID</label>
+                            <input type="text" id="countUserId" placeholder="Scan ID..." autofocus>
+                        </div>
+                        <div class="form-group">
+                            <label>Count / Reference ID</label>
+                            <input type="text" id="countRefId" placeholder="Scan Count Ref...">
+                        </div>
+                        <div class="form-group">
+                            <label>User Names</label>
+                            <textarea id="countUserName" readonly placeholder="Name lookup..." style="resize: none;"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="act-btn btn-in" onclick="processCycleCount('START')"><i class="fas fa-play"></i> Start Counting</button>
+                    <button class="act-btn btn-out" onclick="processCycleCount('END')"><i class="fas fa-stop"></i> End Counting</button>
+                </div>
+                <div class="summary-cards">
+                    <div class="summary-card" onclick="openSummaryModal('active')">
+                        <h4><i class="fas fa-user-tag"></i> Unique Counters</h4>
+                        <span id="stat-uniqueCounters" class="count">0</span>
+                    </div>
+                    <div class="summary-card" id="longCountCard" onclick="openSummaryModal('longCount')">
+                        <h4><i class="fas fa-hourglass-end"></i> > 1hr Counting</h4>
+                        <span id="stat-longCounts" class="count">0</span>
+                    </div>
+                    <div class="summary-card" style="border-left-color: var(--info);" onclick="openSummaryModal('countsCounting')">
+                        <h4><i class="fas fa-list-ol"></i> Counts Counting</h4>
+                        <span id="stat-uniqueCountsCounting" class="count">0</span>
+                    </div>
+                    <div class="summary-card" style="border-left-color: var(--success);" onclick="openSummaryModal('countsCounted')">
+                        <h4><i class="fas fa-check-double"></i> Counts Counted</h4>
+                        <span id="stat-uniqueCountsCounted" class="count">0</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="table-header">
+                <h3>Cycle Count Log</h3>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="countSearch" placeholder="Search ID or Count..." oninput="renderCycleCountTable()">
+                    </div>
+                    <div class="date-filters">
+                        <input type="date" id="dateFrom" onchange="renderCycleCountTable()">
+                        <i class="fas fa-arrow-right"></i>
+                        <input type="date" id="dateTo" onchange="renderCycleCountTable()">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <select id="zoneSearch" onchange="renderCycleCountTable()" style="padding: 10px;">
+                            <option value="">All Zones</option>
+                            <option value="A">Zone A</option>
+                            <option value="B">Zone B</option>
+                            <option value="C">Zone C</option>
+                            <option value="D">Zone D</option>
+                        </select>
+                    </div>
+                    <button class="export-btn" onclick="exportCycleCount()"><i class="fas fa-file-export"></i> Export</button>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-link active" onclick="filterCountTab('Counting')">Counting</button>
+                <button class="tab-link" onclick="filterCountTab('Counted')">Counted</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortData('userId')">User ID <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('name')">Name <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('countRefId')">Count ID <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('zone')">Zone <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('date')">Date <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('startTime')">Start Time <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('endTime')">End Time <i class="fas fa-sort"></i></th>
+                            <th onclick="sortData('duration')">Duration <i class="fas fa-sort"></i></th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="countBody"></tbody>
+                </table>
+            </div>
+            
+            <div class="log-controls">
+                <div class="pagination-controls" id="countPaginationWrapper">
+                    <button class="page-btn" onclick="changeCountPage(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <div id="countPaginationNumbers" class="pagination-numbers"></div>
+                    <button class="page-btn" onclick="changeCountPage(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="zoneModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2>Select Counting Zone</h2>
+                <span class="close" onclick="document.getElementById('zoneModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="text-align: center; color: var(--secondary);">Where are you counting?</p>
+                <div class="zone-grid">
+                    <div class="zone-card" onclick="confirmStartCycleCount('A')">
+                        <i class="fas fa-map-marker-alt"></i><span>Zone A</span></div>
+                    <div class="zone-card" onclick="confirmStartCycleCount('B')">
+                        <i class="fas fa-map-marker-alt"></i><span>Zone B</span></div>
+                    <div class="zone-card" onclick="confirmStartCycleCount('C')">
+                        <i class="fas fa-map-marker-alt"></i><span>Zone C</span></div>
+                    <div class="zone-card" onclick="confirmStartCycleCount('D')">
+                        <i class="fas fa-map-marker-alt"></i><span>Zone D</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Detail Modal -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="summaryModalTitle">Cycle Count Details</h2>
+                <span class="close" onclick="document.getElementById('summaryModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="table-container quick-action-list">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Count ID</th>
+                                <th>Quick Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryModalBody"></tbody>
+                    </table>
+                </div>
+                <div class="log-controls">
+                    <div class="pagination-controls">
+                        <button class="page-btn" onclick="changeSummaryPage(-1)"><i class="fas fa-chevron-left"></i></button>
+                        <div id="summaryPaginationNumbers" class="pagination-numbers"></div>
+                        <button class="page-btn" onclick="changeSummaryPage(1)"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lock Screen Modal -->
+    <div id="lockScreenModal" class="modal lock-screen">
+        <div class="lock-content">
+            <h2><i class="fas fa-user-shield" style="font-size: 2.5rem; color: var(--accent);"></i> Security Lock</h2>
+            <input type="password" id="lockCodeInput" placeholder="••••" 
+                   onkeypress="if(event.key==='Enter') unlockScreen()" autofocus>
+            <div class="lock-footer">ENTER SECURITY CODE TO RESUME</div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm Action</h2>
+                <span class="close" onclick="document.getElementById('confirmModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage" style="margin-bottom: 20px;"></p>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="secondary-btn" onclick="document.getElementById('confirmModal').style.display='none'">Cancel</button>
+                    <button id="confirmBtn" class="nav-btn" style="background: var(--danger);">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2026 Sunnyville Warehouse Management System. All rights reserved.</p>
+    </footer>
+    <script src="cycle-count.js"></script>
+</body>
+</html>
