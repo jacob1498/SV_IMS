@@ -376,6 +376,33 @@ th i.fas { margin-left: 5px; opacity: 0.3; font-size: 0.7rem; }
     margin: 1.5rem 0;
 }
 
+/* Zone Selection Grid */
+.zone-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 20px;
+}
+.zone-card {
+    background: var(--light);
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.zone-card i { font-size: 1.5rem; color: var(--accent); }
+.zone-card:hover {
+    background: white;
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
 /* Summary Cards in Recording Box */
 .summary-cards {
     display: grid;

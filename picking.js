@@ -191,6 +191,11 @@ function processPicking(action) {
     }
 }
 
+function closeZoneModal() {
+    document.getElementById('zoneModal').style.display = 'none';
+    tempStartData = null;
+}
+
 function confirmStartPicking(zone) {
     if (!tempStartData) return;
     

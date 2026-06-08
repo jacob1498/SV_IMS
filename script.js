@@ -59,7 +59,7 @@ function unlockScreen() {
 // Update statistics every 30 seconds for live monitoring (especially for long breaks)
 setInterval(() => {
     updateStats();
-    if (document.getElementById('summaryModal').style.display === 'block' && (currentSummaryType === 'longBreak' || currentSummaryType === 'onBreak')) {
+    if (document.getElementById('summaryModal').style.display === 'block' && (currentSummaryType === 'longBreak' || currentSummaryType === 'onBreak' || currentSummaryType === 'onSnack' || currentSummaryType === 'longSnack')) {
         renderSummaryModalContent();
     }
 }, 30000);
@@ -233,6 +233,63 @@ function saveEditUser() {
     }
 }
 
+function exportUserMaster() {
+    if (userMasterData.length === 0) {
+        showToast("No users to export", "warning");
+        return;
+    }
+    let csvContent = "data:text/csv;charset=utf-8,User ID,Name,Company,Status\n";
+    userMasterData.forEach(user => {
+        csvContent += `${user.id},${user.name},${user.company || '-'},${user.status}\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const timestamp = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `sunnyville_users_export_${timestamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function importUserMaster(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split('\n');
+        const tx = db.transaction("userMasterData", "readwrite");
+        const store = tx.objectStore("userMasterData");
+        
+        let count = 0;
+        // Skip header
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const [id, name, company, status] = line.split(',');
+            if (id && name) {
+                const user = { 
+                    id: id.trim(), 
+                    name: name.trim(), 
+                    company: (company ? company.trim() : '-') || '-', 
+                    status: (status ? status.trim() : 'Active') || 'Active' 
+                };
+                store.put(user);
+                
+                const idx = userMasterData.findIndex(u => u.id === user.id);
+                if (idx > -1) userMasterData[idx] = user;
+                else userMasterData.push(user);
+                count++;
+            }
+        }
+        tx.oncomplete = () => { showToast(`Imported ${count} users successfully`, "success"); renderUserMaster(); event.target.value = ''; };
+    };
+    reader.readAsText(file);
+}
+
 // Event listener for Barcode Scanner (Enter key trigger)
 document.getElementById('userIdInput').addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
@@ -299,11 +356,18 @@ function logAttendance() {
     let actionToApply = selectedAction;
     let existingEntry = attendanceLogs.find(log => log.userId === userId && log.date === dateStr);
     if (existingEntry) {
-        if (existingEntry.timeIn !== '-' && existingEntry.breakOut === '-') actionToApply = 'Break Out';
-        else if (existingEntry.breakOut !== '-' && existingEntry.breakIn === '-') actionToApply = 'Break In';
-        else if (existingEntry.breakIn !== '-' && existingEntry.snackOut === '-') actionToApply = 'Snack Out';
-        else if (existingEntry.snackOut !== '-' && existingEntry.snackIn === '-') actionToApply = 'Snack In';
-        else if (existingEntry.snackIn !== '-' && existingEntry.timeOut === '-') actionToApply = 'Time Out';
+        if (existingEntry.timeIn === '-') actionToApply = 'Time In';
+        else if (existingEntry.breakOut === '-') actionToApply = 'Break Out';
+        else if (existingEntry.breakIn === '-') actionToApply = 'Break In';
+        else if (existingEntry.snackOut === '-') actionToApply = 'Snack Out';
+        else if (existingEntry.snackIn === '-') actionToApply = 'Snack In';
+        else if (existingEntry.timeOut === '-') actionToApply = 'Time Out';
+        else {
+            showToast(`User ${userId} has already completed their shift for today`, "info");
+            userIdField.value = '';
+            nameDisplay.value = '';
+            return;
+        }
     } else {
         actionToApply = 'Time In';
     }
@@ -567,6 +631,7 @@ function updateStats() {
 
     const totalIn = todayLogs.filter(l => l.timeIn !== '-' && l.timeOut === '-').length;
     const onBreak = todayLogs.filter(l => l.breakOut !== '-' && l.breakIn === '-').length;
+    const onSnack = todayLogs.filter(l => l.snackOut !== '-' && l.snackIn === '-').length;
     const finished = todayLogs.filter(l => l.timeOut !== '-').length;
     
     const longBreaks = todayLogs.filter(l => {
@@ -575,16 +640,29 @@ function updateStats() {
         return getBreakMinutes(l.breakOut, endTime) > 40;
     }).length;
 
+    const longSnacks = todayLogs.filter(l => {
+        if (l.snackOut === '-') return false;
+        const endTime = l.snackIn !== '-' ? l.snackIn : nowTime;
+        return getBreakMinutes(l.snackOut, endTime) > 40;
+    }).length;
+
     document.getElementById('stat-totalIn').innerText = totalIn;
     document.getElementById('stat-breakOut').innerText = onBreak;
+    document.getElementById('stat-onSnack').innerText = onSnack;
     document.getElementById('stat-longBreak').innerText = longBreaks;
+    document.getElementById('stat-longSnack').innerText = longSnacks;
     document.getElementById('stat-timeOut').innerText = finished;
 
-    const longBreakCard = document.querySelector('.summary-card[onclick*="longBreak"]');
-    if (longBreaks > 0) {
-        longBreakCard.classList.add('blink-danger');
-    } else {
-        longBreakCard.classList.remove('blink-danger');
+    const longBreakCard = document.getElementById('longBreakCard');
+    if (longBreakCard) {
+        if (longBreaks > 0) longBreakCard.classList.add('blink-danger');
+        else longBreakCard.classList.remove('blink-danger');
+    }
+
+    const longSnackCard = document.getElementById('longSnackCard');
+    if (longSnackCard) {
+        if (longSnacks > 0) longSnackCard.classList.add('blink-danger');
+        else longSnackCard.classList.remove('blink-danger');
     }
 }
 
@@ -638,13 +716,13 @@ function renderTable(data) {
             <td>${log.company || '-'}</td>
             <td>${log.date}</td>
             <td>${log.timeIn}</td>
-            <td>${log.snackOut}</td>
-            <td>${log.snackIn}</td>
             <td>${log.breakOut}</td>
             <td>${log.breakIn}</td>
+            <td>${log.snackOut}</td>
+            <td>${log.snackIn}</td>
             <td>${log.timeOut}</td>
-            <td>${snackDuration}</td>
             <td>${breakDuration}</td>
+            <td>${snackDuration}</td>
             <td>${log.shift}</td>
             <td>
                 <button class="edit-btn" onclick="editLogTime('${log.userId}', '${log.date}')"><i class="fas fa-clock"></i> Edit</button>
@@ -792,6 +870,9 @@ function renderSummaryModalContent() {
     } else if (type === 'onBreak') {
         title.innerText = "Personnel on Break";
         list = todayLogs.filter(l => l.breakOut !== '-' && l.breakIn === '-');
+    } else if (type === 'onSnack') {
+        title.innerText = "Personnel on Snack";
+        list = todayLogs.filter(l => l.snackOut !== '-' && l.snackIn === '-');
     } else if (type === 'longBreak') {
         title.innerText = "Long Breaks (>40 Mins)";
         const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -799,6 +880,14 @@ function renderSummaryModalContent() {
             if (l.breakOut === '-') return false;
             const endTime = l.breakIn !== '-' ? l.breakIn : nowTime;
             return getBreakMinutes(l.breakOut, endTime) > 40;
+        });
+    } else if (type === 'longSnack') {
+        title.innerText = "Long Snacks (>40 Mins)";
+        const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        list = todayLogs.filter(l => {
+            if (l.snackOut === '-') return false;
+            const endTime = l.snackIn !== '-' ? l.snackIn : nowTime;
+            return getBreakMinutes(l.snackOut, endTime) > 40;
         });
     } else if (type === 'finished') {
         title.innerText = "Completed Shifts Today";
@@ -817,6 +906,10 @@ function renderSummaryModalContent() {
             const now = new Date();
             const nowStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             statusDetail = `On break since ${person.breakOut} (${calculateBreakDuration(person.breakOut, nowStr)})`;
+        } else if (type === 'onSnack' || (type === 'longSnack' && person.snackIn === '-')) {
+            const now = new Date();
+            const nowStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            statusDetail = `On snack since ${person.snackOut} (${calculateBreakDuration(person.snackOut, nowStr)})`;
         }
 
         const row = `<tr>
@@ -828,7 +921,9 @@ function renderSummaryModalContent() {
                     <button class="edit-btn" onclick="quickAction('${person.userId}', 'Time Out')">Time Out</button>
                 ` : ''}
                 ${type === 'onBreak' ? `<button class="edit-btn" onclick="quickAction('${person.userId}', 'Break In')">End Break</button>` : ''}
+                ${type === 'onSnack' ? `<button class="edit-btn" onclick="quickAction('${person.userId}', 'Snack In')">End Snack</button>` : ''}
                 ${type === 'longBreak' ? `<button class="edit-btn" onclick="quickAction('${person.userId}', 'Break In')">End Break</button>` : ''}
+                ${type === 'longSnack' ? `<button class="edit-btn" onclick="quickAction('${person.userId}', 'Snack In')">End Snack</button>` : ''}
                 ${type === 'finished' ? `<span class="status-badge" style="background:#ebfaeb; color:#27ae60">Done</span>` : ''}
             </td>
         </tr>`;
@@ -888,6 +983,8 @@ function quickAction(userId, action) {
         if (action === 'Time Out') entry.timeOut = timeStr;
         if (action === 'Break In') entry.breakIn = timeStr;
         if (action === 'Break Out') entry.breakOut = timeStr;
+        if (action === 'Snack In') entry.snackIn = timeStr;
+        if (action === 'Snack Out') entry.snackOut = timeStr;
         entry.lastAction = action;
         
         db.transaction("attendanceLogs", "readwrite").objectStore("attendanceLogs").put(entry);

@@ -173,6 +173,11 @@ function processCycleCount(action) {
     }
 }
 
+function closeZoneModal() {
+    document.getElementById('zoneModal').style.display = 'none';
+    tempStartData = null;
+}
+
 function confirmStartCycleCount(zone) {
     if (!tempStartData) return;
     const tx = db.transaction("cycleCountLogs", "readwrite");
