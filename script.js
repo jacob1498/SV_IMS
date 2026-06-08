@@ -635,15 +635,13 @@ function updateStats() {
     const finished = todayLogs.filter(l => l.timeOut !== '-').length;
     
     const longBreaks = todayLogs.filter(l => {
-        if (l.breakOut === '-') return false;
-        const endTime = l.breakIn !== '-' ? l.breakIn : nowTime;
-        return getBreakMinutes(l.breakOut, endTime) > 40;
+        if (l.breakOut === '-' || l.breakIn !== '-') return false;
+        return getBreakMinutes(l.breakOut, nowTime) > 40;
     }).length;
 
     const longSnacks = todayLogs.filter(l => {
-        if (l.snackOut === '-') return false;
-        const endTime = l.snackIn !== '-' ? l.snackIn : nowTime;
-        return getBreakMinutes(l.snackOut, endTime) > 40;
+        if (l.snackOut === '-' || l.snackIn !== '-') return false;
+        return getBreakMinutes(l.snackOut, nowTime) > 40;
     }).length;
 
     document.getElementById('stat-totalIn').innerText = totalIn;
@@ -877,17 +875,15 @@ function renderSummaryModalContent() {
         title.innerText = "Long Breaks (>40 Mins)";
         const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         list = todayLogs.filter(l => {
-            if (l.breakOut === '-') return false;
-            const endTime = l.breakIn !== '-' ? l.breakIn : nowTime;
-            return getBreakMinutes(l.breakOut, endTime) > 40;
+            if (l.breakOut === '-' || l.breakIn !== '-') return false;
+            return getBreakMinutes(l.breakOut, nowTime) > 40;
         });
     } else if (type === 'longSnack') {
         title.innerText = "Long Snacks (>40 Mins)";
         const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         list = todayLogs.filter(l => {
-            if (l.snackOut === '-') return false;
-            const endTime = l.snackIn !== '-' ? l.snackIn : nowTime;
-            return getBreakMinutes(l.snackOut, endTime) > 40;
+            if (l.snackOut === '-' || l.snackIn !== '-') return false;
+            return getBreakMinutes(l.snackOut, nowTime) > 40;
         });
     } else if (type === 'finished') {
         title.innerText = "Completed Shifts Today";
