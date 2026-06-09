@@ -19,6 +19,57 @@ let idleTimer;
 const IDLE_TIME = 15 * 60 * 1000; // 15 Minutes
 const LOCK_CODE = "SV123";
 
+// --- Date & Time Helpers for 6 AM to 6 AM Shift Day ---
+// Converts 12-hour time string to 24-hour format for internal calculations
+function convertTo24HourForCalc(timeStr) {
+    if (!timeStr || timeStr === '-') return null;
+    try {
+        const [time, modifier] = timeStr.split(' ');
+        let [hours, minutes] = time.split(':');
+        hours = parseInt(hours, 10);
+        if (modifier === 'PM' && hours !== 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+        return { hours, minutes: parseInt(minutes, 10) };
+    } catch (e) { return null; }
+}
+
+// Determines the YYYY-MM-DD string for the "shift day" (6 AM to 6 AM)
+function getShiftBoundaryDateString(logDateStr, logTimeStr) {
+    const [year, month, day] = logDateStr.split('-').map(Number);
+    const timeParts = convertTo24HourForCalc(logTimeStr);
+    if (!timeParts) return logDateStr; // Fallback if time format is unexpected or missing
+
+    const logDateTime = new Date(year, month - 1, day, timeParts.hours, timeParts.minutes);
+    const shiftBoundaryHour = parseInt(localStorage.getItem('shiftStartHour')) || 6;
+
+    // If the time is before 6 AM, the shift belongs to the previous calendar day
+    if (logDateTime.getHours() < shiftBoundaryHour) {
+        logDateTime.setDate(logDateTime.getDate() - 1);
+    }
+    return logDateTime.toISOString().split('T')[0];
+}
+
+// Gets the current "shift day" (YYYY-MM-DD)
+function getCurrentShiftDay() {
+    const now = new Date();
+    const boundary = parseInt(localStorage.getItem('shiftStartHour')) || 6;
+    if (now.getHours() < boundary) now.setDate(now.getDate() - 1); // If before boundary, shift day started yesterday
+    return now.toISOString().split('T')[0];
+}
+
+function openShiftConfigModal() {
+    const current = localStorage.getItem('shiftStartHour') || "6";
+    document.getElementById('shiftStartHourSelect').value = current;
+    document.getElementById('shiftConfigModal').style.display = 'block';
+}
+
+function saveShiftConfig() {
+    const hour = document.getElementById('shiftStartHourSelect').value;
+    localStorage.setItem('shiftStartHour', hour);
+    showToast("Shift configuration updated. Reloading...", "success");
+    setTimeout(() => location.reload(), 1000);
+}
+
 function resetIdleTimer() {
     clearTimeout(idleTimer);
     const lockModal = document.getElementById('lockScreenModal');
@@ -68,6 +119,14 @@ setInterval(() => {
 window.onload = () => {
     resetIdleTimer();
     showTableSkeletons('attendanceBody', 5, 14);
+    // Set default date filters for 6 AM to 6 AM
+    const currentShiftDay = getCurrentShiftDay();
+    const toDate = new Date(currentShiftDay);
+    toDate.setDate(toDate.getDate() + 1);
+    const nextCalendarDay = toDate.toISOString().split('T')[0];
+    
+    document.getElementById('dateFrom').value = currentShiftDay;
+    document.getElementById('dateTo').value = nextCalendarDay;
 };
 
 if (sessionStorage.getItem('authenticated') !== 'true' || localStorage.getItem('isLocked') === 'true') {
@@ -497,8 +556,13 @@ function getFilteredData() {
 }
 
 function clearFilters() {
-    document.getElementById('dateFrom').value = '';
-    document.getElementById('dateTo').value = '';
+    const currentShiftDay = getCurrentShiftDay();
+    const toDate = new Date(currentShiftDay);
+    toDate.setDate(toDate.getDate() + 1);
+    const nextCalendarDay = toDate.toISOString().split('T')[0];
+
+    document.getElementById('dateFrom').value = currentShiftDay;
+    document.getElementById('dateTo').value = nextCalendarDay;
     if(document.getElementById('logSearch')) document.getElementById('logSearch').value = '';
     currentFilter = 'All';
     currentPage = 1;
@@ -625,11 +689,16 @@ function calculateBreakDuration(outStr, inStr) {
 }
 
 function updateStats() {
-    const today = new Date().toISOString().split('T')[0];
-    const todayLogs = attendanceLogs.filter(log => log.date === today);
+    const currentShiftDay = getCurrentShiftDay(); // Get the 6 AM to 6 AM shift day
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    const totalIn = todayLogs.filter(l => l.timeIn !== '-' && l.timeOut === '-').length;
+    // Filter logs for the current 6 AM to 6 AM shift day
+    const todayLogs = attendanceLogs.filter(log => {
+        if (log.timeIn === '-') return false; // Must have a timeIn to determine shift day
+        return getShiftBoundaryDateString(log.date, log.timeIn) === currentShiftDay;
+    });
+
+    const totalIn = todayLogs.filter(l => l.timeIn !== '-' && l.timeOut === '-').length; // This filter is already on todayLogs
     const onBreak = todayLogs.filter(l => l.breakOut !== '-' && l.breakIn === '-').length;
     const onSnack = todayLogs.filter(l => l.snackOut !== '-' && l.snackIn === '-').length;
     const finished = todayLogs.filter(l => l.timeOut !== '-').length;
@@ -847,19 +916,22 @@ function renderUserMaster() {
 
 function openSummaryModal(type) {
     currentSummaryType = type;
-    summaryCurrentPage = 1;
-    renderSummaryModalContent();
-    toggleModal('summaryModal', true);
+    summaryCurrentPage = 1; // Reset to first page when opening modal
+    renderSummaryModalContent(); // Render content based on type
+    toggleModal('summaryModal', true); // Show the modal
 }
 
 function renderSummaryModalContent() {
     const type = currentSummaryType;
-    const today = new Date().toISOString().split('T')[0];
-    const todayLogs = attendanceLogs.filter(log => log.date === today);
+    const currentShiftDay = getCurrentShiftDay(); // Get the 6 AM to 6 AM shift day
     const tbody = document.getElementById('summaryModalBody');
     const title = document.getElementById('summaryModalTitle');
     if (!tbody) return;
     tbody.innerHTML = '';
+
+    const todayLogs = attendanceLogs.filter(log => {
+        return log.timeIn !== '-' && getShiftBoundaryDateString(log.date, log.timeIn) === currentShiftDay;
+    });
 
     let list = [];
     if (type === 'active') {

@@ -130,6 +130,17 @@ input, select {
     border: 1px solid var(--accent);
 }
 
+.count-badge {
+    background: var(--accent);
+    color: white;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin-left: 10px;
+    font-weight: bold;
+    vertical-align: middle;
+}
+
 .recording-body { display: flex; flex-direction: column; gap: 1.5rem; }
 
 .scan-container {

@@ -1,6 +1,58 @@
 let db;
 const LOCK_CODE = "SV123";
 
+// --- Date & Time Helpers for 6 AM to 6 AM Shift Day ---
+// Converts 12-hour time string to 24-hour format for internal calculations
+function convertTo24HourForCalc(timeStr) {
+    if (!timeStr || timeStr === '-') return null;
+    try {
+        const [time, modifier] = timeStr.split(' ');
+        let [hours, minutes] = time.split(':');
+        hours = parseInt(hours, 10);
+        if (modifier === 'PM' && hours !== 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+        return { hours, minutes: parseInt(minutes, 10) };
+    } catch (e) { return null; }
+}
+
+// Determines the YYYY-MM-DD string for the "shift day" (6 AM to 6 AM)
+function getShiftBoundaryDateString(logDateStr, logTimeStr) {
+    const [year, month, day] = logDateStr.split('-').map(Number);
+    const timeParts = convertTo24HourForCalc(logTimeStr);
+    if (!timeParts) return logDateStr; // Fallback if time format is unexpected or missing
+
+    const logDateTime = new Date(year, month - 1, day, timeParts.hours, timeParts.minutes);
+    const shiftBoundaryHour = parseInt(localStorage.getItem('shiftStartHour')) || 6;
+
+    // If the time is before 6 AM, the shift belongs to the previous calendar day
+    if (logDateTime.getHours() < shiftBoundaryHour) {
+        logDateTime.setDate(logDateTime.getDate() - 1);
+    }
+    return logDateTime.toISOString().split('T')[0];
+}
+
+// Gets the current "shift day" (YYYY-MM-DD)
+function getCurrentShiftDay() {
+    const now = new Date();
+    const boundary = parseInt(localStorage.getItem('shiftStartHour')) || 6;
+    if (now.getHours() < boundary) now.setDate(now.getDate() - 1); // If before boundary, shift day started yesterday
+    return now.toISOString().split('T')[0];
+}
+
+// Shift Config Handlers
+function openShiftConfigModal() {
+    const current = localStorage.getItem('shiftStartHour') || "6";
+    document.getElementById('shiftStartHourSelect').value = current;
+    document.getElementById('shiftConfigModal').style.display = 'block';
+}
+
+function saveShiftConfig() {
+    const hour = document.getElementById('shiftStartHourSelect').value;
+    localStorage.setItem('shiftStartHour', hour);
+    alert("Shift configuration updated. Reloading...");
+    location.reload();
+}
+
 // Real-time Clock
 function updateClock() {
     const now = new Date();
@@ -52,7 +104,7 @@ setInterval(refreshDashboard, 30000); // Refresh every 30s
 
 function refreshDashboard() {
     if (!db) return;
-    const today = new Date().toISOString().split('T')[0];
+    const currentShiftDay = getCurrentShiftDay(); // Use 6 AM to 6 AM day
     const tx = db.transaction(["attendanceLogs", "pickingLogs", "cycleCountLogs"], "readonly");
 
     let attData = [], pickData = [], countData = [];
@@ -66,21 +118,28 @@ function refreshDashboard() {
         const currentMins = now.getHours() * 60 + now.getMinutes();
 
         // 1. Attendance Stats
-        const todayAtt = attData.filter(l => l.date === today);
+        const todayAtt = attData.filter(l => {
+            if (l.timeIn === '-') return false;
+            return getShiftBoundaryDateString(l.date, l.timeIn) === currentShiftDay;
+        });
         document.getElementById('dash-totalIn').innerText = todayAtt.filter(l => l.timeIn !== '-' && l.timeOut === '-').length;
         document.getElementById('dash-onBreak').innerText = todayAtt.filter(l => l.breakOut !== '-' && l.breakIn === '-').length;
         document.getElementById('dash-finishedAtt').innerText = todayAtt.filter(l => l.timeOut !== '-').length;
 
         // 2. Picking Stats
         const activePick = pickData.filter(l => l.endTime === '-');
-        const finishedPickToday = pickData.filter(l => l.endTime !== '-' && l.date === today);
+        const finishedPickToday = pickData.filter(l => 
+            l.endTime !== '-' && getShiftBoundaryDateString(l.date, l.startTime) === currentShiftDay
+        );
         document.getElementById('dash-activePicks').innerText = activePick.length;
         document.getElementById('dash-doneBatches').innerText = [...new Set(finishedPickToday.map(l => l.batchId))].length;
         document.getElementById('dash-longPicks').innerText = activePick.filter(l => (currentMins - parseTimeToMinutes(l.startTime)) > 60).length;
 
         // 3. Cycle Count Stats
         const activeCount = countData.filter(l => l.endTime === '-');
-        const finishedCountToday = countData.filter(l => l.endTime !== '-' && l.date === today);
+        const finishedCountToday = countData.filter(l => 
+            l.endTime !== '-' && getShiftBoundaryDateString(l.date, l.startTime) === currentShiftDay
+        );
         document.getElementById('dash-activeCounts').innerText = activeCount.length;
         document.getElementById('dash-doneCounts').innerText = finishedCountToday.length;
         document.getElementById('dash-zones').innerText = [...new Set(finishedCountToday.map(l => l.zone))].filter(z => z).length;
@@ -93,6 +152,15 @@ function refreshDashboard() {
 
         const idle = currentlyTimedIn.filter(u => !pickingUserIds.has(u.userId) && !countingUserIds.has(u.userId));
         
+        const idleCountBadge = document.getElementById('dash-idleCount');
+        if (idleCountBadge) {
+            idleCountBadge.innerText = idle.length;
+            // Highlight in red if count exceeds 5 people
+            idleCountBadge.style.backgroundColor = idle.length > 5 
+                ? 'var(--danger)' 
+                : 'var(--accent)';
+        }
+
         const idleBody = document.getElementById('dash-idleBody');
         if (idleBody) {
             idleBody.innerHTML = idle.length > 0

@@ -48,6 +48,7 @@
                 <a href="javascript:void(0)" class="dropbtn"><i class="fas fa-cog"></i> System</a>
                 <div class="dropdown-content">
                     <a href="javascript:void(0)" onclick="document.getElementById('clearDataModal').style.display='block'"><i class="fas fa-eraser"></i> Clear Data</a>
+                    <a href="javascript:void(0)" onclick="openShiftConfigModal()"><i class="fas fa-clock"></i> Shift Config</a>
                 </div>
             </li>
             <li><button class="nav-btn" onclick="lockScreen()"><i class="fas fa-lock"></i> Lock Screen</button></li>
@@ -100,7 +101,7 @@
 
         <!-- Idle Personnel -->
         <div class="card">
-            <h3><i class="fas fa-user-clock" style="color: var(--secondary);"></i> Idle Personnel</h3>
+            <h3><i class="fas fa-user-clock" style="color: var(--secondary);"></i> Idle Personnel <span id="dash-idleCount" class="count-badge">0</span></h3>
             <div class="stat-group">
                 <div class="table-container" style="max-height: 300px; border: none; margin-top: 10px;">
                     <table style="width: 100%; font-size: 0.85rem;">
@@ -136,6 +137,26 @@
                     <button class="nav-btn" style="background: var(--warning); color: var(--text);" onclick="clearDataByPeriod()"><i class="fas fa-filter"></i> Clear Selected Range</button>
                     <button class="nav-btn" style="background: var(--danger);" onclick="clearAllData()"><i class="fas fa-trash-alt"></i> Clear All Data (Reset)</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shift Config Modal -->
+    <div id="shiftConfigModal" class="modal">
+        <div class="modal-content" style="width: 350px;">
+            <div class="modal-header">
+                <h2>Shift Configuration</h2>
+                <span class="close" onclick="document.getElementById('shiftConfigModal').style.display='none'">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Shift Start Hour</label>
+                    <select id="shiftStartHourSelect">
+                        <option value="5">5:00 AM</option>
+                        <option value="6">6:00 AM</option>
+                    </select>
+                </div>
+                <button class="nav-btn" onclick="saveShiftConfig()" style="width: 100%; margin-top: 20px;">Save Settings</button>
             </div>
         </div>
     </div>

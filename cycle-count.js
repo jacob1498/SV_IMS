@@ -16,6 +16,42 @@ let idleTimer;
 const IDLE_TIME = 15 * 60 * 1000; // 15 Minutes
 const LOCK_CODE = "SV123";
 
+// --- Date & Time Helpers for 6 AM to 6 AM Shift Day ---
+// Converts 12-hour time string to 24-hour format for internal calculations
+function convertTo24HourForCalc(timeStr) {
+    if (!timeStr || timeStr === '-') return null;
+    try {
+        const [time, modifier] = timeStr.split(' ');
+        let [hours, minutes] = time.split(':');
+        hours = parseInt(hours, 10);
+        if (modifier === 'PM' && hours !== 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+        return { hours, minutes: parseInt(minutes, 10) };
+    } catch (e) { return null; }
+}
+
+// Determines the YYYY-MM-DD string for the "shift day" (6 AM to 6 AM)
+function getShiftBoundaryDateString(logDateStr, logTimeStr) {
+    const [year, month, day] = logDateStr.split('-').map(Number);
+    const timeParts = convertTo24HourForCalc(logTimeStr);
+    if (!timeParts) return logDateStr; // Fallback if time format is unexpected or missing
+
+    const logDateTime = new Date(year, month - 1, day, timeParts.hours, timeParts.minutes);
+    const shiftBoundaryHour = parseInt(localStorage.getItem('shiftStartHour')) || 6;
+
+    // If the time is before 6 AM, the shift belongs to the previous calendar day
+    if (logDateTime.getHours() < shiftBoundaryHour) {
+        logDateTime.setDate(logDateTime.getDate() - 1);
+    }
+    return logDateTime.toISOString().split('T')[0];
+}
+
+// Gets the current "shift day" (YYYY-MM-DD)
+function getCurrentShiftDay() {
+    const now = new Date();
+    if (now.getHours() < 6) now.setDate(now.getDate() - 1); // If before 6 AM, shift day started yesterday
+    return now.toISOString().split('T')[0];
+}
 function resetIdleTimer() {
     clearTimeout(idleTimer);
     const lockModal = document.getElementById('lockScreenModal');
@@ -68,6 +104,14 @@ setInterval(() => {
 window.onload = () => {
     resetIdleTimer();
     showTableSkeletons('countBody', 5, 10);
+    // Set default date filters for 6 AM to 6 AM
+    const currentShiftDay = getCurrentShiftDay();
+    const toDate = new Date(currentShiftDay);
+    toDate.setDate(toDate.getDate() + 1);
+    const nextCalendarDay = toDate.toISOString().split('T')[0];
+
+    document.getElementById('dateFrom').value = currentShiftDay;
+    document.getElementById('dateTo').value = nextCalendarDay;
 };
 
 if (sessionStorage.getItem('authenticated') !== 'true' || localStorage.getItem('isLocked') === 'true') {
@@ -254,8 +298,8 @@ function renderCycleCountTable() {
     let filtered = cycleCountLogs.filter(l => 
         (l.userId.toLowerCase().includes(search) || l.countRefId.toLowerCase().includes(search) || (l.name && l.name.toLowerCase().includes(search))) &&
         (zoneSearch === "" || l.zone === zoneSearch) &&
-        (!dateFrom || l.date >= dateFrom) &&
-        (!dateTo || l.date <= dateTo) &&
+        (!dateFrom || getShiftBoundaryDateString(l.date, l.startTime) >= dateFrom) &&
+        (!dateTo || getShiftBoundaryDateString(l.date, l.startTime) <= dateTo) &&
         (currentCountTab === 'Counting' ? l.endTime === '-' : l.endTime !== '-')
     );
 
@@ -289,7 +333,9 @@ function renderCycleCountTable() {
 function updateCountStats() {
     const active = cycleCountLogs.filter(l => l.endTime === '-');
     const today = new Date().toISOString().split('T')[0];
-    const finishedToday = cycleCountLogs.filter(l => l.endTime !== '-' && l.date === today);
+    const currentShiftDay = getCurrentShiftDay(); // Use 6 AM to 6 AM day
+    const finishedToday = cycleCountLogs.filter(l => 
+        l.endTime !== '-' && getShiftBoundaryDateString(l.date, l.startTime) === currentShiftDay);
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     document.getElementById('stat-uniqueCounters').innerText = [...new Set(active.map(l => l.userId))].length;
     document.getElementById('stat-uniqueCountsCounting').innerText = [...new Set(active.map(l => l.countRefId))].length;
@@ -310,7 +356,7 @@ function openSummaryModal(type) {
 function renderSummaryModalContent() {
     const tbody = document.getElementById('summaryModalBody');
     const title = document.getElementById('summaryModalTitle');
-    const today = new Date().toISOString().split('T')[0];
+    const currentShiftDay = getCurrentShiftDay(); // Use 6 AM to 6 AM day
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     let list = [];
@@ -325,7 +371,7 @@ function renderSummaryModalContent() {
         list = cycleCountLogs.filter(l => l.endTime === '-');
     } else if (currentSummaryType === 'countsCounted') {
         title.innerText = "Counts Completed Today";
-        list = cycleCountLogs.filter(l => l.endTime !== '-' && l.date === today);
+        list = cycleCountLogs.filter(l => l.endTime !== '-' && getShiftBoundaryDateString(l.date, l.startTime) === currentShiftDay);
     }
 
     const totalPages = Math.ceil(list.length / summaryRowsPerPage) || 1;
